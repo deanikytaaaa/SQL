@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL Notebook</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d0f14; --surface:#161a22; --surface2:#1e2330; --border:#2a3040;
+    --accent:#10b981; --accent2:#059669;
+    --green:#00ff88; --red:#ff4466; --yellow:#ffd600;
+    --text:#e8eaf0; --text2:#8892a4; --text3:#4a5568;
+    --font-mono:'JetBrains Mono',monospace; --font-ui:'Space Grotesk',sans-serif;
+    --radius:10px; --shadow:0 4px 24px rgba(0,0,0,0.4);
+  }
+  .light {
+    --bg:#f0f2f7; --surface:#ffffff; --surface2:#e8ecf4; --border:#d0d7e3;
+    --accent:#059669; --green:#00aa55; --red:#dd2244; --yellow:#cc8800;
+    --text:#1a1f2e; --text2:#4a5568; --text3:#a0aab8; --shadow:0 4px 24px rgba(0,0,0,0.1);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:var(--font-ui); min-height:100vh; transition:background 0.3s,color 0.3s; }
+  header { display:flex; align-items:center; justify-content:space-between; padding:14px 24px; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; box-shadow:var(--shadow); gap:12px; flex-wrap:wrap; }
+  .logo { display:flex; align-items:center; gap:10px; font-weight:700; font-size:1.1rem; letter-spacing:-0.02em; }
+  .logo-icon { width:32px; height:32px; background:linear-gradient(135deg,#10b981,#059669); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .logo span { color:var(--accent); }
+  .header-status { font-family:var(--font-mono); font-size:0.72rem; color:var(--text3); background:var(--surface2); padding:4px 10px; border-radius:20px; border:1px solid var(--border); }
+  .header-status.ready { color:var(--green); border-color:rgba(0,255,136,0.3); }
+  .header-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .btn { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:7px; font-family:var(--font-ui); font-size:0.82rem; font-weight:600; cursor:pointer; border:none; transition:all 0.15s; white-space:nowrap; }
+  .btn-ghost { background:transparent; color:var(--text2); border:1px solid var(--border); }
+  .btn-ghost:hover { background:var(--surface2); color:var(--text); }
+  .btn-accent { background:var(--accent); color:#fff; }
+  .btn-accent:hover { opacity:0.85; transform:translateY(-1px); }
+  .icon-btn { background:var(--surface2); border:1px solid var(--border); color:var(--text2); width:34px; height:34px; border-radius:7px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px; transition:all 0.15s; }
+  .icon-btn:hover { background:var(--border); color:var(--text); }
+  main { max-width:900px; margin:0 auto; padding:28px 20px 80px; }
+  .toolbar { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; align-items:center; }
+  .dropdown { position:relative; }
+  .dropdown-menu { display:none; position:absolute; top:calc(100% + 6px); left:0; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); min-width:240px; box-shadow:var(--shadow); z-index:200; overflow:hidden; }
+  .dropdown-menu.open { display:block; }
+  .dropdown-item { padding:10px 14px; cursor:pointer; font-size:0.85rem; transition:background 0.1s; display:flex; align-items:center; gap:8px; }
+  .dropdown-item:hover { background:var(--surface2); }
+  #cells { display:flex; flex-direction:column; gap:16px; }
+  .cell { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); transition:border-color 0.2s; animation:cellIn 0.25s ease; }
+  @keyframes cellIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  .cell:focus-within { border-color:var(--accent); }
+  .cell-header { display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--surface2); border-bottom:1px solid var(--border); }
+  .cell-num { font-family:var(--font-mono); font-size:0.72rem; color:var(--text3); min-width:30px; }
+  .cell-label { flex:1; background:transparent; border:none; color:var(--text2); font-family:var(--font-ui); font-size:0.82rem; font-weight:500; outline:none; }
+  .cell-label::placeholder { color:var(--text3); }
+  .cell-label:focus { color:var(--text); }
+  .cell-actions { display:flex; gap:5px; }
+  .run-btn { display:flex; align-items:center; gap:5px; padding:4px 12px; background:var(--accent); color:#fff; border:none; border-radius:5px; font-family:var(--font-ui); font-size:0.78rem; font-weight:700; cursor:pointer; transition:all 0.15s; }
+  .run-btn:hover { opacity:0.85; }
+  .run-btn:disabled { opacity:0.5; cursor:not-allowed; }
+  .run-btn.running { background:var(--yellow); color:#000; }
+  .small-btn { background:var(--surface); border:1px solid var(--border); color:var(--text2); width:26px; height:26px; border-radius:5px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:13px; transition:all 0.12s; }
+  .small-btn:hover { background:var(--border); color:var(--text); }
+  .small-btn.del:hover { background:var(--red); color:#fff; border-color:var(--red); }
+  .code-textarea { width:100%; min-height:120px; background:var(--bg); color:var(--text); font-family:var(--font-mono); font-size:0.85rem; line-height:1.65; border:none; padding:14px 16px; resize:vertical; outline:none; tab-size:2; transition:background 0.3s; }
+  .cell-output { border-top:1px solid var(--border); background:var(--bg); }
+  .output-bar { display:flex; align-items:center; gap:8px; padding:6px 12px; border-bottom:1px solid var(--border); background:var(--surface2); }
+  .output-label { font-size:0.72rem; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text3); }
+  .status-dot { width:7px; height:7px; border-radius:50%; background:var(--text3); }
+  .status-dot.ok { background:var(--green); box-shadow:0 0 6px var(--green); }
+  .status-dot.err { background:var(--red); box-shadow:0 0 6px var(--red); }
+  .status-dot.running { background:var(--yellow); animation:pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .exec-time { font-size:0.72rem; color:var(--text3); margin-left:auto; font-family:var(--font-mono); }
+  .output-content { padding:12px 16px; font-family:var(--font-mono); font-size:0.82rem; line-height:1.7; white-space:pre; word-break:keep-all; max-height:400px; overflow:auto; }
+  .output-content.success { color:var(--green); }
+  .output-content.error { color:var(--red); }
+  .output-content.empty { color:var(--text3); font-style:italic; white-space:normal; }
+  .spinner { display:inline-block; width:12px; height:12px; border:2px solid transparent; border-top-color:currentColor; border-radius:50%; animation:spin 0.6s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .add-cell-area { display:flex; justify-content:center; padding:8px 0; }
+  .add-cell-btn { display:flex; align-items:center; gap:6px; padding:8px 20px; background:transparent; border:1.5px dashed var(--border); border-radius:var(--radius); color:var(--text3); font-family:var(--font-ui); font-size:0.82rem; font-weight:600; cursor:pointer; transition:all 0.15s; width:100%; justify-content:center; }
+  .add-cell-btn:hover { border-color:var(--accent); color:var(--accent); background:rgba(16,185,129,0.04); }
+  .toast-container { position:fixed; bottom:24px; right:24px; z-index:999; display:flex; flex-direction:column; gap:8px; }
+  .toast { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent); padding:10px 16px; border-radius:var(--radius); font-size:0.83rem; box-shadow:var(--shadow); animation:toastIn 0.2s ease; max-width:300px; }
+  @keyframes toastIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  .toast.success { border-left-color:var(--green); }
+  .toast.error { border-left-color:var(--red); }
+  .loading-banner { background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:0.83rem; color:var(--accent); display:flex; align-items:center; gap:8px; }
+  .note-banner { background:rgba(255,214,0,0.08); border:1px solid rgba(255,214,0,0.2); border-radius:8px; padding:10px 16px; margin-bottom:16px; font-size:0.8rem; color:var(--yellow); }
+</style>
+</head>
+<body>
+<header>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="logo"><div class="logo-icon">🗄️</div>SQL<span>Notebook</span></div>
+    <div class="header-status" id="sqlStatus">Loading SQLite...</div>
+  </div>
+  <div class="header-actions">
+    <div class="dropdown" id="templateDropdown">
+      <button class="btn btn-ghost" onclick="toggleDropdown()">📋 Templates ▾</button>
+      <div class="dropdown-menu" id="templateMenu">
+        <div class="dropdown-item" onclick="addFromTemplate('CREATE & INSERT','basic')">🔨 CREATE & INSERT</div>
+        <div class="dropdown-item" onclick="addFromTemplate('SELECT Queries','select')">🔍 SELECT Queries</div>
+        <div class="dropdown-item" onclick="addFromTemplate('JOIN Tables','join')">🔗 JOIN Tables</div>
+        <div class="dropdown-item" onclick="addFromTemplate('GROUP BY & Aggregate','group')">📊 GROUP BY & Aggregate</div>
+        <div class="dropdown-item" onclick="addFromTemplate('Subquery','subquery')">🔮 Subquery</div>
+        <div class="dropdown-item" onclick="addFromTemplate('UPDATE & DELETE','update')">✏️ UPDATE & DELETE</div>
+        <div class="dropdown-item" onclick="addFromTemplate('Index & View','index')">⚡ Index & View</div>
+      </div>
+    </div>
+    <button class="btn btn-ghost" onclick="runAll()">▶▶ Run All</button>
+    <button class="btn btn-ghost" onclick="resetDB()">🔄 Reset DB</button>
+    <button class="btn btn-ghost" onclick="clearAll()">🗑 Clear All</button>
+    <button class="btn btn-ghost" onclick="downloadNB()">⬇ Download</button>
+    <button class="btn btn-accent" onclick="saveNB()">💾 Save</button>
+    <button class="icon-btn" id="themeBtn" onclick="toggleTheme()">🌙</button>
+  </div>
+</header>
+<main>
+  <div id="loadingBanner" class="loading-banner"><span class="spinner"></span> Loading SQLite (sql.js)...</div>
+  <div class="note-banner">⚠️ Database bersifat sementara — data hilang saat halaman di-refresh. Gunakan <b>Run All</b> untuk re-create semua tabel.</div>
+  <div class="toolbar">
+    <button class="btn btn-ghost" onclick="addCell('New Query','')">＋ Add Cell</button>
+    <button class="btn btn-ghost" onclick="runAll()">▶ Run All</button>
+  </div>
+  <div id="cells"></div>
+  <div class="add-cell-area"><button class="add-cell-btn" onclick="addCell('New Query','')">＋ Add SQL Cell</button></div>
+</main>
+<div class="toast-container" id="toastContainer"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<script>
+let isDark=true, cellCount=0, sqlDB=null, sqlReady=false;
+
+const TEMPLATES = {
+  basic: `-- Buat tabel karyawan
+CREATE TABLE IF NOT EXISTS karyawan (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nama TEXT NOT NULL,
+  divisi TEXT,
+  gaji INTEGER,
+  tahun_masuk INTEGER
+);
+
+-- Insert data
+INSERT INTO karyawan (nama, divisi, gaji, tahun_masuk) VALUES
+  ('Budi Santoso', 'Engineering', 9000000, 2020),
+  ('Sari Dewi', 'Design', 8000000, 2021),
+  ('Andi Wijaya', 'Engineering', 10500000, 2019),
+  ('Rina Kusuma', 'Product', 11000000, 2018),
+  ('Doni Pratama', 'Engineering', 9500000, 2020);
+
+SELECT * FROM karyawan;`,
+  select: `-- SELECT dengan berbagai filter
+SELECT * FROM karyawan WHERE divisi = 'Engineering';
+
+-- ORDER BY
+SELECT nama, gaji FROM karyawan ORDER BY gaji DESC;
+
+-- LIMIT & OFFSET
+SELECT nama, gaji FROM karyawan ORDER BY gaji DESC LIMIT 3;
+
+-- LIKE (pattern matching)
+SELECT * FROM karyawan WHERE nama LIKE 'B%';
+
+-- BETWEEN
+SELECT * FROM karyawan WHERE gaji BETWEEN 9000000 AND 10000000;`,
+  join: `-- Buat tabel proyek
+CREATE TABLE IF NOT EXISTS proyek (
+  id INTEGER PRIMARY KEY,
+  nama_proyek TEXT,
+  karyawan_id INTEGER,
+  status TEXT,
+  deadline TEXT,
+  FOREIGN KEY (karyawan_id) REFERENCES karyawan(id)
+);
+
+INSERT INTO proyek VALUES
+  (1, 'Website Redesign', 1, 'active', '2024-06-01'),
+  (2, 'Mobile App', 3, 'done', '2024-03-15'),
+  (3, 'Dashboard Analytics', 5, 'active', '2024-07-30'),
+  (4, 'API Integration', 1, 'pending', '2024-08-01');
+
+-- INNER JOIN
+SELECT k.nama, k.divisi, p.nama_proyek, p.status
+FROM karyawan k
+INNER JOIN proyek p ON k.id = p.karyawan_id
+ORDER BY k.nama;
+
+-- LEFT JOIN (semua karyawan, proyek atau tidak)
+SELECT k.nama, COALESCE(p.nama_proyek, '(tidak ada proyek)') as proyek
+FROM karyawan k
+LEFT JOIN proyek p ON k.id = p.karyawan_id;`,
+  group: `-- Statistik per divisi
+SELECT
+  divisi,
+  COUNT(*) as jumlah_karyawan,
+  AVG(gaji) as rata_gaji,
+  MAX(gaji) as gaji_max,
+  MIN(gaji) as gaji_min,
+  SUM(gaji) as total_gaji
+FROM karyawan
+GROUP BY divisi
+ORDER BY rata_gaji DESC;
+
+-- HAVING (filter setelah GROUP BY)
+SELECT divisi, COUNT(*) as jumlah
+FROM karyawan
+GROUP BY divisi
+HAVING jumlah > 1;
+
+-- Rata-rata gaji per tahun masuk
+SELECT tahun_masuk, ROUND(AVG(gaji)) as avg_gaji
+FROM karyawan
+GROUP BY tahun_masuk
+ORDER BY tahun_masuk;`,
+  subquery: `-- Karyawan dengan gaji di atas rata-rata
+SELECT nama, gaji
+FROM karyawan
+WHERE gaji > (SELECT AVG(gaji) FROM karyawan)
+ORDER BY gaji DESC;
+
+-- Karyawan dengan gaji tertinggi per divisi
+SELECT k1.nama, k1.divisi, k1.gaji
+FROM karyawan k1
+WHERE k1.gaji = (
+  SELECT MAX(k2.gaji) FROM karyawan k2
+  WHERE k2.divisi = k1.divisi
+)
+ORDER BY k1.divisi;
+
+-- COUNT dengan subquery
+SELECT 
+  (SELECT COUNT(*) FROM karyawan) as total,
+  (SELECT COUNT(*) FROM karyawan WHERE divisi='Engineering') as engineers,
+  (SELECT AVG(gaji) FROM karyawan) as avg_gaji;`,
+  update: `-- Lihat data sebelum
+SELECT * FROM karyawan;
+
+-- UPDATE gaji
+UPDATE karyawan SET gaji = gaji * 1.1 WHERE divisi = 'Engineering';
+
+-- Lihat setelah update
+SELECT nama, divisi, gaji FROM karyawan ORDER BY divisi;
+
+-- DELETE specific row
+DELETE FROM karyawan WHERE nama = 'Doni Pratama';
+
+-- Konfirmasi
+SELECT COUNT(*) as sisa_karyawan FROM karyawan;`,
+  index: `-- Buat index
+CREATE INDEX IF NOT EXISTS idx_divisi ON karyawan(divisi);
+CREATE INDEX IF NOT EXISTS idx_gaji ON karyawan(gaji);
+
+-- Buat VIEW
+CREATE VIEW IF NOT EXISTS v_engineering AS
+SELECT nama, gaji, tahun_masuk
+FROM karyawan
+WHERE divisi = 'Engineering'
+ORDER BY gaji DESC;
+
+-- Query dari view
+SELECT * FROM v_engineering;
+
+-- List semua tabel
+SELECT name, type FROM sqlite_master WHERE type IN ('table','view') ORDER BY type, name;`
+};
+
+// SQL.js init
+async function initSQL() {
+  try {
+    const SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` });
+    sqlDB = new SQL.Database();
+    sqlReady = true;
+    document.getElementById('sqlStatus').textContent = 'SQLite Ready ✓';
+    document.getElementById('sqlStatus').className = 'header-status ready';
+    document.getElementById('loadingBanner').style.display = 'none';
+    showToast('🗄️ SQLite siap!', 'success');
+  } catch(e) {
+    document.getElementById('sqlStatus').textContent = 'Load Failed';
+    document.getElementById('loadingBanner').innerHTML = '❌ Gagal load SQLite. Buka file ini di Chrome/Firefox.';
+    showToast('Gagal load SQLite', 'error');
+  }
+}
+
+function resetDB() {
+  if (!confirm('Reset database? Semua tabel akan hilang.')) return;
+  try {
+    const SQL = sqlDB.constructor;
+    sqlDB.close();
+    sqlDB = new SQL.Database();
+    showToast('🔄 Database direset', 'success');
+  } catch(e) { showToast('Gagal reset: '+e.message, 'error'); }
+}
+
+function formatTable(res) {
+  if (!res || !res.columns) return '';
+  const cols = res.columns;
+  const rows = res.values;
+  const widths = cols.map((c,i) => Math.max(c.length, ...rows.map(r => String(r[i]??'').length)));
+  const sep = '+' + widths.map(w=>'-'.repeat(w+2)).join('+') + '+';
+  const header = '| ' + cols.map((c,i)=>c.padEnd(widths[i])).join(' | ') + ' |';
+  const dataRows = rows.map(r => '| ' + r.map((v,i)=>String(v??'').padEnd(widths[i])).join(' | ') + ' |');
+  return [sep, header, sep, ...dataRows, sep, `  ${rows.length} row(s)`].join('\n');
+}
+
+function addCell(label='New Query', code='') {
+  cellCount++;
+  const id='cell_'+Date.now();
+  const div=document.createElement('div');
+  div.className='cell'; div.id=id;
+  div.innerHTML=`
+    <div class="cell-header">
+      <span class="cell-num">[${cellCount}]</span>
+      <input class="cell-label" value="${label}" placeholder="Query label..." oninput="saveNBauto()">
+      <div class="cell-actions">
+        <button class="small-btn" onclick="moveCell('${id}',-1)">↑</button>
+        <button class="small-btn" onclick="moveCell('${id}',1)">↓</button>
+        <button class="small-btn" onclick="dupCell('${id}')">⧉</button>
+        <button class="small-btn del" onclick="deleteCell('${id}')">✕</button>
+        <button class="run-btn" id="runBtn_${id}" onclick="runCell('${id}')">▶ Run</button>
+      </div>
+    </div>
+    <textarea class="code-textarea" id="code_${id}" spellcheck="false"
+      placeholder="-- Tulis query SQL di sini..."
+      onkeydown="handleKey(event,'${id}')"
+      oninput="saveNBauto()">${escH(code)}</textarea>
+    <div class="cell-output" id="output_${id}" style="display:none">
+      <div class="output-bar">
+        <div class="status-dot" id="dot_${id}"></div>
+        <span class="output-label">Output</span>
+        <span class="exec-time" id="time_${id}"></span>
+      </div>
+      <div class="output-content" id="content_${id}"></div>
+    </div>`;
+  document.getElementById('cells').appendChild(div);
+  updateCellNumbers(); saveNBauto();
+  div.querySelector('textarea').focus();
+}
+
+function escH(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function handleKey(e,id){
+  if(e.key==='Tab'){e.preventDefault();const ta=e.target,s=ta.selectionStart;ta.value=ta.value.substring(0,s)+'  '+ta.value.substring(ta.selectionEnd);ta.selectionStart=ta.selectionEnd=s+2;}
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();runCell(id);}
+}
+function addFromTemplate(label,key){addCell(label,TEMPLATES[key]||'');}
+function deleteCell(id){document.getElementById(id)?.remove();updateCellNumbers();saveNBauto();showToast('Cell dihapus','error');}
+function moveCell(id,dir){const cell=document.getElementById(id),cont=document.getElementById('cells'),cells=[...cont.children],idx=cells.indexOf(cell),target=cells[idx+dir];if(!target)return;dir===-1?cont.insertBefore(cell,target):cont.insertBefore(target,cell);updateCellNumbers();saveNBauto();}
+function dupCell(id){const code=document.getElementById('code_'+id)?.value||'';const label=document.getElementById(id)?.querySelector('.cell-label')?.value||'';addCell('Copy of '+label,code);}
+function updateCellNumbers(){document.querySelectorAll('.cell').forEach((c,i)=>{const n=c.querySelector('.cell-num');if(n)n.textContent=`[${i+1}]`;});cellCount=document.querySelectorAll('.cell').length;}
+function clearAll(){if(!confirm('Hapus semua cell?'))return;document.getElementById('cells').innerHTML='';cellCount=0;saveNBauto();showToast('Semua cell dihapus');}
+
+async function runCell(id) {
+  if (!sqlReady){showToast('⏳ SQLite masih loading...');return;}
+  const code=document.getElementById('code_'+id)?.value;
+  if(!code?.trim()){showToast('Cell kosong!','error');return;}
+  const btn=document.getElementById('runBtn_'+id),outDiv=document.getElementById('output_'+id);
+  const content=document.getElementById('content_'+id),dot=document.getElementById('dot_'+id),timeEl=document.getElementById('time_'+id);
+  btn.disabled=true;btn.className='run-btn running';btn.innerHTML='<span class="spinner"></span> Running...';
+  outDiv.style.display='block';dot.className='status-dot running';
+  content.className='output-content';content.textContent='';timeEl.textContent='';
+  const start=Date.now();
+  const stmts=code.split(';').map(s=>s.trim()).filter(s=>s);
+  const outputLines=[];
+  let hasError=false;
+  for (const stmt of stmts) {
+    try {
+      const results=sqlDB.exec(stmt+';');
+      if(results.length>0){
+        results.forEach(res=>{ outputLines.push(formatTable(res)); });
+      } else {
+        const lo=stmt.toLowerCase().trim();
+        const msg=lo.startsWith('create')?'✅ Table/View created':lo.startsWith('insert')?'✅ Row(s) inserted':lo.startsWith('update')?'✅ Row(s) updated':lo.startsWith('delete')?'✅ Row(s) deleted':lo.startsWith('drop')?'✅ Dropped':'✅ OK';
+        outputLines.push(msg);
+      }
+    } catch(e){
+      outputLines.push('❌ Error: '+e.message+'\n   Statement: '+stmt.substring(0,80));
+      hasError=true;
+    }
+  }
+  const elapsed=((Date.now()-start)/1000).toFixed(3);timeEl.textContent=elapsed+'s';
+  content.textContent=outputLines.join('\n\n');
+  content.className='output-content'+(hasError?' error':' success');
+  dot.className='status-dot '+(hasError?'err':'ok');
+  btn.disabled=false;btn.className='run-btn';btn.innerHTML='▶ Run';
+}
+
+async function runAll(){
+  const cells=document.querySelectorAll('.cell');
+  if(!cells.length){showToast('Tidak ada cell!','error');return;}
+  showToast('Menjalankan '+cells.length+' cell...');
+  for(const c of cells){await runCell(c.id);await new Promise(r=>setTimeout(r,100));}
+  showToast('Semua cell selesai! ✅','success');
+}
+
+function getData(){const cells=document.querySelectorAll('.cell');return[...cells].map(c=>({label:c.querySelector('.cell-label')?.value||'',code:document.getElementById('code_'+c.id)?.value||''}));}
+function saveNB(){try{localStorage.setItem('sql_notebook_v1',JSON.stringify(getData()));showToast('💾 Tersimpan!','success');}catch(e){showToast('Gagal simpan','error');}}
+function saveNBauto(){try{localStorage.setItem('sql_notebook_auto',JSON.stringify(getData()));}catch(e){}}
+function downloadNB(){const blob=new Blob([JSON.stringify(getData(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='sql-notebook.json';a.click();showToast('⬇ Downloaded!');}
+function loadFromStorage(){try{const raw=localStorage.getItem('sql_notebook_v1')||localStorage.getItem('sql_notebook_auto');if(raw){const data=JSON.parse(raw);if(data.length){data.forEach(d=>addCell(d.label,d.code));showToast(data.length+' cell dimuat 💾','success');return true;}}}catch(e){}return false;}
+function toggleTheme(){isDark=!isDark;document.body.classList.toggle('light',!isDark);document.getElementById('themeBtn').textContent=isDark?'🌙':'☀️';}
+function toggleDropdown(){document.getElementById('templateMenu').classList.toggle('open');}
+document.addEventListener('click',e=>{if(!document.getElementById('templateDropdown').contains(e.target))document.getElementById('templateMenu').classList.remove('open');});
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveNB();}});
+function showToast(msg,type=''){const c=document.getElementById('toastContainer');const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;c.appendChild(t);setTimeout(()=>t.remove(),3000);}
+
+initSQL().then(()=>{ if(!loadFromStorage()){addCell('CREATE & INSERT',TEMPLATES.basic);} });
+</script>
+</body>
+</html>
